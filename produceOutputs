@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 SuiteFileName=${1}
 ProgramName=${2}
@@ -23,26 +23,36 @@ if [ ! -x ${2} ]; then
 	exit 1
 fi
 
-err=1
+err=0
 for Filename in $(cat ${1}); do 
 	
-	if [ ! -r ${Filename}.args -a -e ${Filename}.args ]
+	if [ ! -r ${Filename}.in -a -e ${Filename}.in ]
+	then 
+		echo ${Filename}.in is not readable >&2
+		err=1
+	elif [ ! -r ${Filename}.args -a -e ${Filename}.args ]
 	then
 		echo ${Filename}.args is not readable >&2
-		err=$(( err + 1 ))
-
+		err=1
 	elif [ ! -w ${Filename}.out -a -e ${Filename}.out ]
 	then
 		echo ${Filename}.out is not writeable >&2
-		err=$(( err + 1 ))
-	elif [ -e ${Filename}.args ]
+		err=1
+	elif [ -e ${Filename}.in -a -e ${Filename}.args ]
+	then
+		cat ${Filename}.in | ${2} $(cat ${Filename}.args) > ${Filename}.out
+	elif [ -e ${Filename}.in ]
+	then
+		cat ${Filename}.in | ${2} > ${Filename}.out
+	elif [ -e ${Filename}.args ] 
 	then
 		${2} $(cat ${Filename}.args) > ${Filename}.out
-	else
+	else 
 		touch ${Filename}.out
 	fi
+
 done
 
-if [ $err -gt 1 ]; then
+if [ $err -eq 1 ]; then
 	exit 1
 fi

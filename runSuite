@@ -1,0 +1,86 @@
+#!/usr/bin/bash
+
+SuiteFileName=${1}
+ProgramName=${2}
+
+IncorrectArgumentNumber () 
+{
+	echo "Incorrect number of arguments" >&2
+	exit 1
+}
+
+if [ ${#} -ne 2 ]; then 
+	IncorrectArgumentNumber
+fi 
+
+if [ ! -r ${1} ]; then
+	echo "$SuiteFileName is not readable" >&2
+	exit 1
+fi 
+
+if [ ! -x ${2} ]; then
+	echo "$ProgramName is not executable" >&2
+	exit 1
+fi
+
+mktemp > /dev/null
+touch /tmp/Output.out 
+chmod u=rw /tmp/Output.out
+Error=0
+for Filename in $(cat ${1}); do 
+	if [ ! -e ${Filename}.out -o ! -r ${Filename}.out ]
+	then
+		echo File ${Filename}.out does not exist or is not readable >&2
+		exit 1
+	fi
+
+	if [ ! -r ${Filename}.in -a -e ${Filename}.in ]
+	then 
+		echo ${Filename}.in is not readable >&2
+		err=1
+	elif [ ! -r ${Filename}.args -a -e ${Filename}.args ]
+	then
+		echo ${Filename}.args is not readable >&2
+		err=1
+	elif [ ! -w ${Filename}.out -a -e ${Filename}.out ]
+	then
+		echo ${Filename}.out is not writeable >&2
+		err=1
+	elif [ -e ${Filename}.in -a -e ${Filename}.args ]
+	then
+		cat ${Filename}.in | ${2} $(cat ${Filename}.args) > /tmp/Output.out
+	elif [ -e ${Filename}.in ]
+	then
+		cat ${Filename}.in | ${2} > /tmp/Output.out
+	elif [ -e ${Filename}.args ] 
+	then
+		${2} $(cat ${Filename}.args) > /tmp/Output.out
+	fi
+
+	if [ "$(diff /tmp/Output.out ${Filename}.out)" != "" ]
+	then
+		echo Test failed: ${Filename}
+		if [ -e ${Filename}.args -a -r ${Filename}.args ]
+		then 
+			echo Args:
+			echo "$(cat ${Filename}.args)" 
+		else 
+			echo Args:
+		fi
+		echo Input:
+		if [ -e ${Filename}.in -a ${Filename}.in ]
+		then 
+			echo "$(cat ${Filename}.in)"
+		fi
+		echo Expected:
+		echo "$(cat ${Filename}.out)" 
+		echo Actual:
+		echo "$(cat /tmp/Output.out)"
+	fi
+	
+done
+rm /tmp/Output.out
+if [ $Error -eq 1 ]
+then
+	exit 1
+fi
