@@ -1,0 +1,48 @@
+#!/usr/bin/bash
+
+SuiteFileName=${1}
+ProgramName=${2}
+
+IncorrectArgumentNumber () 
+{
+	echo "Incorrect number of arguments" >&2
+	exit 1
+}
+
+if [ ${#} -ne 2 ]; then 
+	IncorrectArgumentNumber
+fi 
+
+if [ ! -r ${1} ]; then
+	echo "$SuiteFileName is not readable" >&2
+	exit 1
+fi 
+
+if [ ! -x ${2} ]; then
+	echo "$ProgramName is not executable" >&2
+	exit 1
+fi
+
+err=1
+for Filename in $(cat ${1}); do 
+	
+	if [ ! -r ${Filename}.args -a -e ${Filename}.args ]
+	then
+		echo ${Filename}.args is not readable >&2
+		err=$(( err + 1 ))
+
+	elif [ ! -w ${Filename}.out -a -e ${Filename}.out ]
+	then
+		echo ${Filename}.out is not writeable >&2
+		err=$(( err + 1 ))
+	elif [ -e ${Filename}.args ]
+	then
+		${2} $(cat ${Filename}.args) > ${Filename}.out
+	else
+		touch ${Filename}.out
+	fi
+done
+
+if [ $err -gt 1 ]; then
+	exit 1
+fi
